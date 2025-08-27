@@ -510,7 +510,7 @@ class FlashAttentionImpl(AttentionImpl):
             query = query.reshape((num_tokens, num_heads, head_size))
 
         if not attn_metadata.use_cascade:
-            logger.info("[forward] normal attention")
+            # logger.info("[forward] normal attention")
             cu_seqlens_q = attn_metadata.query_start_loc
             seqused_k = attn_metadata.seq_lens
             max_seqlen_q = attn_metadata.max_query_len
@@ -545,7 +545,7 @@ class FlashAttentionImpl(AttentionImpl):
             return output
 
         # Cascade attention (rare case).
-        logger.info("[forward] cascade attention")
+        # logger.info("[forward] cascade attention")
         cascade_attention(
             output[:num_actual_tokens],
             query[:num_actual_tokens],
@@ -589,6 +589,8 @@ def use_cascade_attention(
     given configuration, and 2) heuristically decides whether using cascade
     attention can improve performance.
     """
+    return True
+
     # Too short common prefix. Probably not worth using cascade attention.
     # We use an arbitrary threshold of 256 tokens. TODO: Tune this threshold.
     # NOTE(woosuk): This is the common case. We should return False as soon as
