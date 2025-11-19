@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     CUDA_VISIBLE_DEVICES: str | None = None
     VLLM_ENGINE_ITERATION_TIMEOUT_S: int = 60
     VLLM_API_KEY: str | None = None
+    VLLM_ADMIN_API_KEY: str | None = None
     VLLM_DEBUG_LOG_API_SERVER_RESPONSE: bool = False
     S3_ACCESS_KEY_ID: str | None = None
     S3_SECRET_ACCESS_KEY: str | None = None
@@ -577,6 +578,8 @@ environment_variables: dict[str, Callable[[], Any]] = {
     ),
     # API key for vLLM API server
     "VLLM_API_KEY": lambda: os.environ.get("VLLM_API_KEY", None),
+    # Admin API key for vLLM API server
+    "VLLM_ADMIN_API_KEY": lambda: os.environ.get("VLLM_ADMIN_API_KEY", None),
     # Whether to log responses from API Server for debugging
     "VLLM_DEBUG_LOG_API_SERVER_RESPONSE": lambda: os.environ.get(
         "VLLM_DEBUG_LOG_API_SERVER_RESPONSE", "False"
@@ -1604,6 +1607,8 @@ def compile_factors() -> dict[str, object]:
         "VLLM_TEST_FORCE_LOAD_FORMAT",
         "LOCAL_RANK",
         "CUDA_VISIBLE_DEVICES",
+        "VLLM_API_KEY",
+        "VLLM_ADMIN_API_KEY",
     }
 
     from vllm.config.utils import normalize_value

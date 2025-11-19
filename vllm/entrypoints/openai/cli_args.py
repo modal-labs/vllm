@@ -96,6 +96,9 @@ class FrontendArgs:
     api_key: list[str] | None = None
     """If provided, the server will require one of these keys to be presented in
     the header."""
+    admin_api_key: list[str] | None = None
+    """If provided, the server will require one of these keys to be presented in
+    the header for admin endpoints."""
     lora_modules: list[LoRAModulePath] | None = None
     """LoRA modules configurations in either 'name=path' format or JSON format
     or JSON list format. Example (old format): `'name=path'` Example (new

@@ -1042,11 +1042,14 @@ async def do_rerank_v2(request: RerankRequest, raw_request: Request):
     return await do_rerank(request, raw_request)
 
 
-if envs.VLLM_SERVER_DEV_MODE:
-    logger.warning(
-        "SECURITY WARNING: Development endpoints are enabled! "
-        "This should NOT be used in production!"
-    )
+if envs.VLLM_SERVER_DEV_MODE or envs.VLLM_ADMIN_API_KEY:
+    if envs.VLLM_SERVER_DEV_MODE:
+        logger.warning(
+            "SECURITY WARNING: Development endpoints are enabled! "
+            "This should NOT be used in production!"
+        )
+    else:
+        logger.info("Admin endpoints are enabled with VLLM_ADMIN_API_KEY.")
 
     PydanticVllmConfig = pydantic.TypeAdapter(VllmConfig)
 
@@ -1316,12 +1319,18 @@ class AuthenticationMiddleware:
     -----
     There are two cases in which authentication is skipped:
         1. The HTTP method is OPTIONS.
-        2. The request path doesn't start with /v1 (e.g. /health).
+        2. The request path doesn't match the path_predicate (e.g. /health).
     """
 
-    def __init__(self, app: ASGIApp, tokens: list[str]) -> None:
+    def __init__(
+        self,
+        app: ASGIApp,
+        tokens: list[str],
+        path_predicate: Callable[[str], bool] | None = None,
+    ) -> None:
         self.app = app
         self.api_tokens = [hashlib.sha256(t.encode("utf-8")).digest() for t in tokens]
+        self.path_predicate = path_predicate
 
     def verify_token(self, headers: Headers) -> bool:
         authorization_header_value = headers.get("Authorization")
@@ -1349,7 +1358,15 @@ class AuthenticationMiddleware:
         url_path = URL(scope=scope).path.removeprefix(root_path)
         headers = Headers(scope=scope)
         # Type narrow to satisfy mypy.
-        if url_path.startswith("/v1") and not self.verify_token(headers):
+
+        # Default predicate checks for /v1 prefix if no predicate is provided
+        should_auth = (
+            self.path_predicate(url_path)
+            if self.path_predicate
+            else url_path.startswith("/v1")
+        )
+
+        if should_auth and not self.verify_token(headers):
             response = JSONResponse(content={"error": "Unauthorized"}, status_code=401)
             return response(scope, receive, send)
         return self.app(scope, receive, send)
@@ -1623,6 +1640,27 @@ def build_app(args: Namespace) -> FastAPI:
     # Ensure --api-key option from CLI takes precedence over VLLM_API_KEY
     if tokens := [key for key in (args.api_key or [envs.VLLM_API_KEY]) if key]:
         app.add_middleware(AuthenticationMiddleware, tokens=tokens)
+
+    # Ensure --admin-api-key option from CLI takes precedence over VLLM_ADMIN_API_KEY
+    if admin_tokens := [
+        key
+        for key in (args.admin_api_key or [envs.VLLM_ADMIN_API_KEY])
+        if key
+    ]:
+        app.add_middleware(
+            AuthenticationMiddleware,
+            tokens=admin_tokens,
+            path_predicate=lambda path: path
+            in {
+                "/server_info",
+                "/reset_prefix_cache",
+                "/reset_mm_cache",
+                "/sleep",
+                "/wake_up",
+                "/is_sleeping",
+                "/collective_rpc",
+            },
+        )
 
     if args.enable_request_id_headers:
         app.add_middleware(XRequestIdMiddleware)
