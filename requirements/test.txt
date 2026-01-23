@@ -705,7 +705,7 @@ propcache==0.2.0
     # via yarl
 proto-plus==1.26.1
     # via google-api-core
-protobuf==5.28.3
+protobuf==7.34.0rc1
     # via
     #   google-api-core
     #   googleapis-common-protos
